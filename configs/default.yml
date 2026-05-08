@@ -1,0 +1,58 @@
+# Default experiment configuration for FL workflow
+# Override per-experiment in exp_*.yml files
+
+fl:
+  algorithm: "fedavg"          # fedavg | fedprox
+  num_rounds: 2
+  local_epochs: 1
+  batch_size: 32
+  learning_rate: 0.01
+  client_fraction: 1.0         # fraction of clients per round
+  model_arch: "resnet18"       # resnet18 | efficientnet_b0
+  fedprox_mu: 0.01             # proximal term (only used if algorithm=fedprox)
+
+datasets:
+  tcia:
+    enabled: true
+    num_clients: 2
+    collections:
+      - "NSCLC-Radiomics"
+      - "TCGA-LUAD"
+      - "LIDC-IDRI"
+      - "NSCLC-Radiogenomics"
+      - "RIDER-Lung-CT"
+    task: "lung_classification"  # classification task across collections
+    image_size: [224, 224]
+    num_classes: 2               # e.g., malignant vs benign
+    test_split: 0.2
+    max_series_per_collection: 100  # limit DICOM downloads per collection
+    collection_labels:             # binary label mapping for partitioning
+      NSCLC-Radiomics: 0
+      TCGA-LUAD: 1
+      LIDC-IDRI: 0
+      NSCLC-Radiogenomics: 1
+      RIDER-Lung-CT: 0
+    # raw_data_path: "/path/to/tcia_raw_data.tar.gz"  # pre-staged data (skip download)
+
+  nih:
+    enabled: true
+    num_clients: 2
+    source: "ChestXray-NIHCC"
+    partition_by: "patient_id"   # natural partition by patient groups
+    task: "pathology_classification"
+    image_size: [224, 224]
+    num_classes: 14              # 14 pathology labels
+    test_split: 0.2
+    max_samples: 2000            # limit total images downloaded
+    download_source: "huggingface"  # huggingface | nih_box
+    # raw_data_path: "/path/to/nih_raw_data.tar.gz"   # pre-staged data (skip download)
+
+execution:
+  data_configuration: "condorio"
+  compute_site: "condorpool"
+  staging_site: "local"
+  container: "kthare10/fl-training:latest"
+  max_walltime: 1800            # 30 min per training job
+  gpu_per_train_job: 1
+  cpu_per_train_job: 4
+  mem_per_train_job: 14336      # MB

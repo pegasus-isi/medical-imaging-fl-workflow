@@ -1,0 +1,53 @@
+# Full experiment configuration — scaled FL workflow
+#
+# Changes from default.yml:
+#   - 20 FL rounds (convergence curves)
+#   - 3 local epochs per round
+#   - 5 clients per dataset (scaling demonstration)
+#   - 0.6 client fraction (partial participation)
+#   - Memory sized for 16 GB worker nodes
+
+fl:
+  algorithm: "fedprox"         # fedavg | fedprox
+  num_rounds: 20
+  local_epochs: 3
+  batch_size: 32
+  learning_rate: 0.01
+  client_fraction: 0.6         # 3 of 5 clients per round
+  model_arch: "resnet18"       # resnet18 | efficientnet_b0
+  fedprox_mu: 0.01             # proximal term (only used if algorithm=fedprox)
+
+datasets:
+  tcia:
+    enabled: true
+    num_clients: 5
+    collections:
+      - "NSCLC-Radiomics"
+      - "TCGA-LUAD"
+      - "LIDC-IDRI"
+      - "NSCLC-Radiogenomics"
+      - "RIDER-Lung-CT"
+    task: "lung_classification"
+    image_size: [224, 224]
+    num_classes: 2
+    test_split: 0.2
+
+  nih:
+    enabled: true
+    num_clients: 5
+    source: "ChestXray-NIHCC"
+    partition_by: "patient_id"
+    task: "pathology_classification"
+    image_size: [224, 224]
+    num_classes: 14
+    test_split: 0.2
+
+execution:
+  data_configuration: "condorio"
+  compute_site: "condorpool"
+  staging_site: "local"
+  container: "kthare10/fl-training:latest"
+  max_walltime: 3600           # 1 hour per training job
+  gpu_per_train_job: 1
+  cpu_per_train_job: 4
+  mem_per_train_job: 15000     # MB — fits 16 GB worker nodes

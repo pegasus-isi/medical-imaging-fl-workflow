@@ -1,0 +1,63 @@
+# E5: Cross-dataset generalization
+# Purpose: Evaluate whether a model trained on one modality (3D CT/MRI)
+#          generalizes to another (2D X-Ray) and vice versa.
+# Both datasets enabled — the workflow's cross_dataset_eval job
+# tests each dataset's final model on the other dataset's test set.
+# Key output: cross_dataset_metrics.json
+# Same FL settings as E1 to isolate the cross-dataset effect.
+
+fl:
+  algorithm: "fedavg"
+  num_rounds: 50
+  local_epochs: 5
+  batch_size: 32
+  learning_rate: 0.01
+  client_fraction: 1.0
+  model_arch: "resnet18"
+  fedprox_mu: 0.0
+
+datasets:
+  tcia:
+    enabled: true
+    num_clients: 10
+    collections:
+      - "NSCLC-Radiomics"
+      - "TCGA-LUAD"
+      - "LIDC-IDRI"
+      - "NSCLC-Radiogenomics"
+      - "RIDER-Lung-CT"
+    task: "lung_classification"
+    image_size: [224, 224]
+    num_classes: 2
+    test_split: 0.2
+    max_series_per_collection: 100
+    collection_labels:
+      NSCLC-Radiomics: 0
+      TCGA-LUAD: 1
+      LIDC-IDRI: 0
+      NSCLC-Radiogenomics: 1
+      RIDER-Lung-CT: 0
+    raw_data_path: "/home/ubuntu/medical-imaging-fl-workflow/tcia_raw_data.tar.gz"
+
+  nih:
+    enabled: true
+    num_clients: 10
+    source: "ChestXray-NIHCC"
+    partition_by: "patient_id"
+    task: "pathology_classification"
+    image_size: [224, 224]
+    num_classes: 14
+    test_split: 0.2
+    max_samples: 20000
+    download_source: "huggingface"
+    raw_data_path: "/home/ubuntu/medical-imaging-fl-workflow/nih_raw_data.tar.gz"
+
+execution:
+  data_configuration: "condorio"
+  compute_site: "condorpool"
+  staging_site: "local"
+  container: "kthare10/fl-training:latest"
+  max_walltime: 3600
+  gpu_per_train_job: 1
+  cpu_per_train_job: 4
+  mem_per_train_job: 15000

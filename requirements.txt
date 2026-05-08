@@ -1,0 +1,33 @@
+# =============================================================================
+# Federated Learning Pegasus Workflow — Python Dependencies
+# =============================================================================
+# Install: pip install -r requirements.txt
+# Tested with Python 3.11
+# =============================================================================
+
+# --- Pegasus Workflow Management ---
+pegasus-wms.api>=5.0.6
+
+# --- Deep Learning ---
+torch>=2.2.0
+torchvision>=0.17.0
+
+# --- Federated Learning ---
+flwr[simulation]>=1.7,<2.0
+
+# --- Medical Imaging I/O ---
+pydicom>=2.4.0
+nibabel>=5.2.0
+Pillow>=10.0.0
+
+# --- Data Science ---
+numpy>=1.26.0
+pandas>=2.1.0
+scikit-learn>=1.4.0
+
+# --- Visualization ---
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# --- Configuration ---
+pyyaml>=6.0.1

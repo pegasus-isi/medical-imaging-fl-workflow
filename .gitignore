@@ -1,0 +1,46 @@
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Experiment outputs (large files, not for version control)
+e1_outputs/
+e2_outputs/
+e3_outputs/
+e4_outputs/
+e5_outputs/
+e6_outputs/
+work/
+*.tar.gz
+
+# Pegasus runtime
+*.dag
+*.sub
+*.log
+*.out
+*.err
+transformations.yml
+sites.yml
+replicas.yml
+pegasus.properties
+fl_main.yml
+fl_round_*.yml
+*.rc.yml
+*.properties.sub
+
+# OS
+.DS_Store
+Thumbs.db
