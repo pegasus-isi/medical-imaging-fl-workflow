@@ -2,7 +2,7 @@
 
 Reproducible federated learning experiments for cross-institutional medical imaging, orchestrated by [Pegasus WMS](https://pegasus.isi.edu/) and executed on distributed HTCondor pools across multiple sites (MAX, NCSA, TACC, WASH).
 
-> **Note:** This workflow was generated with the assistance of [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (Anthropic) using the [pegasus-ai](https://github.com/pegasus-isi/pegasus-ai) plugin for Pegasus-specific workflow scaffolding, debugging, and catalog generation. All code was reviewed and validated by the authors.
+> **Note:** This workflow was generated with the assistance of [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (Anthropic) using the [pegasus-ai](https://github.com/pegasus-isi/claude-plugin-marketplace) plugin for Pegasus-specific workflow scaffolding, debugging, and catalog generation. All code was reviewed and validated by the authors.
 
 ## Overview
 
