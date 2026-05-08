@@ -2,6 +2,8 @@
 
 Reproducible federated learning experiments for cross-institutional medical imaging, orchestrated by [Pegasus WMS](https://pegasus.isi.edu/) and executed on distributed HTCondor pools across multiple sites (MAX, NCSA, TACC, WASH).
 
+> **Note:** This workflow was generated with the assistance of [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (Anthropic) using the [pegasus-ai](https://github.com/pegasus-isi/pegasus-ai) plugin for Pegasus-specific workflow scaffolding, debugging, and catalog generation. All code was reviewed and validated by the authors.
+
 ## Overview
 
 This project implements an end-to-end Federated Learning (FL) pipeline as a Pegasus DAG workflow. The workflow automates data preparation, per-client local training, server-side aggregation, evaluation, and multi-round iteration across two medical imaging datasets.
