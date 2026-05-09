@@ -147,10 +147,17 @@ def train_one_round(
     # Class-weighted loss
     if class_weighted_loss and hasattr(dataloader.dataset, 'labels') and dataloader.dataset.labels:
         labels = dataloader.dataset.labels
-        class_counts = np.bincount(labels)
+        # Infer num_classes from model head to ensure weight tensor matches
+        if hasattr(model, 'fc'):
+            n_classes = model.fc.out_features
+        elif hasattr(model, 'classifier'):
+            n_classes = model.classifier[-1].out_features
+        else:
+            n_classes = max(labels) + 1
+        class_counts = np.bincount(labels, minlength=n_classes)
         # Inverse frequency weights, normalized
         weights = 1.0 / (class_counts.astype(np.float64) + 1e-6)
-        weights = weights / weights.sum() * len(class_counts)
+        weights = weights / weights.sum() * n_classes
         criterion = nn.CrossEntropyLoss(weight=torch.tensor(weights, dtype=torch.float32).to(device))
         print(f"  Class weights: {weights.tolist()}")
     else:

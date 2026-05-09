@@ -147,9 +147,9 @@ def main():
     # Class-weighted loss
     import numpy as np
     if class_weighted_loss and hasattr(dataset, 'labels') and dataset.labels:
-        class_counts = np.bincount(dataset.labels)
+        class_counts = np.bincount(dataset.labels, minlength=num_classes)
         weights = 1.0 / (class_counts.astype(np.float64) + 1e-6)
-        weights = weights / weights.sum() * len(class_counts)
+        weights = weights / weights.sum() * num_classes
         criterion = nn.CrossEntropyLoss(weight=torch.tensor(weights, dtype=torch.float32).to(device))
         print(f"  Class weights: {weights.tolist()}")
     else:
