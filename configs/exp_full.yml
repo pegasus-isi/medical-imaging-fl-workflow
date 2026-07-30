@@ -39,7 +39,7 @@ datasets:
     partition_by: "patient_id"
     task: "pathology_classification"
     image_size: [224, 224]
-    num_classes: 14
+    num_classes: 2               # binary: No Finding=0, pathology=1
     test_split: 0.2
 
 execution:

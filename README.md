@@ -233,26 +233,28 @@ cd medical-imaging-fl-workflow
 
 | ID | Name | Purpose | Key Parameters |
 |---|---|---|---|
-| E1 | Baseline | Central vs. FL accuracy gap | K=5, T=50, FedAvg |
-| E2 | Algorithm | FedAvg vs. FedProx | K=5, T=50, varying mu |
-| E3 | Scalability | Client count impact | K={3,5,10} |
-| E4 | Communication | Rounds vs. local epochs trade-off | T={10,25,50}, E={1,3,5} |
-| E5 | Cross-Dataset | Cross-modality generalization | TCIA + NIH, domain gap |
-| E6 | Improved Training | Fix model collapse from E1-E5 | Frozen backbone, Adam, class-weighted loss, augmentation |
+| E1 | Baseline | Central vs. FL accuracy gap | FedAvg, K=10, T=50, E=2 |
+| E2 | Algorithm | FedAvg vs. FedProx | FedProx mu=0.01, K=10, T=50, E=2 |
+| E3 | Scalability | Client count impact | FedAvg, K=5, T=50, E=2 |
+| E4 | Communication | Rounds vs. local epochs trade-off | FedAvg, K=10, T=10, E=5 |
+| E5 | Cross-Dataset | Cross-modality generalization | FedAvg, K=10, T=50, E=2 |
+| E6 | Improved Training | Address the collapse seen in E1-E5 | Adam at lr=1e-4, frozen backbone, class-weighted loss, augmentation |
+
+Values are as run. E1 through E5 use SGD with momentum 0.9, weight decay 1e-4, lr=0.001, batch size 32, and full client participation. E5's FL rounds were not carried through and are not reported.
 
 ### E6: Improved Training
 
-Experiments E1-E5 exhibited model collapse to majority-class prediction (~46-54% accuracy). Root causes: full-model averaging destroying pretrained ImageNet features, no class imbalance handling, aggressive learning rate (0.01 with SGD), no data augmentation on small client shards, and a bug where `fedprox_mu` was never passed to `train_local.py`.
+Experiments E1-E5 exhibited model collapse to majority-class prediction (~46-54% accuracy). Suspected causes: full-model averaging destroying pretrained ImageNet features, no class imbalance handling, SGD at lr=0.001 on small client shards (~330 TCIA and ~4,000 NIH images per client at K=10), and no data augmentation. A separate bug meant the configured `fedprox_mu` was not passed to `train_local.py`, though E2 was unaffected because its value matched the script default (see SPEC.md section 14).
 
-E6 fixes all of these:
+E6 addresses these, and did not resolve the collapse:
 
 | Parameter | E1-E5 (baseline) | E6 (improved) | Rationale |
 |-----------|-------------------|---------------|-----------|
-| `learning_rate` | 0.01 | **0.0001** | 100x lower — prevents catastrophic overwriting of pretrained weights |
+| `learning_rate` | 0.001 | **0.0001** | 10x lower — reduces overwriting of pretrained weights |
 | `optimizer` | SGD | **Adam** | Adaptive per-parameter LR; gentler updates |
 | `freeze_backbone` | false | **true** | Only train classifier head; preserves ImageNet features |
 | `class_weighted_loss` | false | **true** | Handles class imbalance; prevents majority-class collapse |
-| `augmentation` | false | **true** | Regularizes small client shards (~50-100 images) |
+| `augmentation` | false | **true** | Regularizes small client shards |
 | `grad_clip` | 0.0 | **1.0** | Stabilizes training; prevents gradient explosion |
 | `lr_scheduler` | none | **cosine** | Gradual warmdown over local epochs |
 
@@ -276,13 +278,16 @@ All experiments are driven by YAML config files in `configs/`.
 | Config | Rounds | Epochs | Clients | Fraction | Purpose |
 |--------|--------|--------|---------|----------|---------|
 | `default.yml` | 2 | 1 | 2 | 1.0 | Smoke test / pipeline validation |
+| `exp_test_quick.yml` | 5 | 2 | 5 | 1.0 | Short pipeline check on pre-staged data |
 | `exp_full.yml` | 20 | 3 | 5 | 0.6 | Full experiment |
-| `exp_e1_baseline.yml` | 20 | 3 | 5 | 1.0 | Central vs. FL accuracy gap |
-| `exp_e2_algorithm.yml` | 20 | 3 | 5 | 1.0 | FedAvg vs. FedProx |
-| `exp_e3_scalability.yml` | 20 | 3 | 3 | 1.0 | Client count scaling |
-| `exp_e4_communication.yml` | 10 | 5 | 5 | 1.0 | Rounds vs. local epochs trade-off |
-| `exp_e5_cross_dataset.yml` | 20 | 3 | 5 | 1.0 | Cross-modality generalization |
-| `exp_e6_improved.yml` | 50 | 5 | 10 | 1.0 | Improved training (fixes model collapse) |
+| `exp_e1_baseline.yml` | 50 | 2 | 10 | 1.0 | Central vs. FL accuracy gap |
+| `exp_e2_algorithm.yml` | 50 | 2 | 10 | 1.0 | FedAvg vs. FedProx (mu=0.01) |
+| `exp_e3_scalability.yml` | 50 | 2 | 5 | 1.0 | Client count scaling |
+| `exp_e4_communication.yml` | 10 | 5 | 10 | 1.0 | Rounds vs. local epochs trade-off |
+| `exp_e5_cross_dataset.yml` | 50 | 2 | 10 | 1.0 | Cross-modality generalization |
+| `exp_e6_improved.yml` | 50 | 5 | 10 | 1.0 | Training optimizations |
+
+Rounds, epochs, and clients are the as-run values that produced the reported results. Learning rate is 0.001 for E1 through E5 and 0.0001 for E6.
 
 ### Data Configuration Parameters
 

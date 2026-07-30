@@ -37,21 +37,24 @@ Each dataset's institutions/sources are treated as FL **clients** (data silos).
 - Transfer learning from ImageNet pre-trained weights
 
 ### 3.3 FL Parameters
-| Parameter | Default | Sweep Range |
-|---|---|---|
-| Number of clients (K) | 5 | 3, 5, 10 |
-| Rounds (T) | 50 | 10, 25, 50, 100 |
-| Local epochs (E) | 5 | 1, 3, 5 |
-| Batch size | 32 | 16, 32, 64 |
-| Learning rate | 0.01 | 0.0001, 0.001, 0.01 |
-| Client fraction per round (C) | 1.0 | 0.5, 0.8, 1.0 |
-| Optimizer | sgd | sgd, adam, adamw |
-| Freeze backbone | false | true, false |
-| Class-weighted loss | false | true, false |
-| Data augmentation | false | true, false |
-| Gradient clipping | 0.0 | 0.0, 1.0 |
-| LR scheduler | none | none, cosine, step |
-| FedProx mu | 0.0 | 0.0, 0.01, 0.1 |
+
+The **As run** column gives the value used by the reported experiments E1 through E5 (see §8.1 for the per-experiment deviations). The **Design default** column is the value proposed during specification, kept here because §8.1 and §8.6 refer to it.
+
+| Parameter | Design default | As run (E1-E5) | Sweep Range |
+|---|---|---|---|
+| Number of clients (K) | 5 | 10 (5 in E3) | 3, 5, 10 |
+| Rounds (T) | 50 | 50 (10 in E4) | 10, 25, 50, 100 |
+| Local epochs (E) | 5 | 2 (5 in E4) | 1, 3, 5 |
+| Batch size | 32 | 32 | 16, 32, 64 |
+| Learning rate | 0.01 | 0.001 | 0.0001, 0.001, 0.01 |
+| Client fraction per round (C) | 1.0 | 1.0 | 0.5, 0.8, 1.0 |
+| Optimizer | sgd | sgd (momentum 0.9, weight decay $10^{-4}$) | sgd, adam, adamw |
+| Freeze backbone | false | false | true, false |
+| Class-weighted loss | false | false | true, false |
+| Data augmentation | false | false | true, false |
+| Gradient clipping | 0.0 | 0.0 | 0.0, 1.0 |
+| LR scheduler | none | none | none, cosine, step |
+| FedProx mu | 0.0 | 0.0 (0.01 in E2) | 0.0, 0.01, 0.1 |
 
 ---
 
@@ -318,6 +321,8 @@ The properties file is passed to each `SubWorkflow` via `--conf`.
 | `centralized_baseline` | 4 | 1 | 32 GB | 4-8 hrs |
 | `generate_plots` | 1 | 0 | 4 GB | 5 min |
 
+These are design-time targets. The values actually requested at runtime come from the `execution` block of the experiment config (`gpu_per_train_job`, `cpu_per_train_job`, `mem_per_train_job`, `max_walltime`) and are translated into HTCondor `request_*` profiles on each transformation, so they can be lowered to fit the available workers without editing the generators. Constraint C4 in §8.4 is the check that they fit.
+
 ### 7.2 Data Staging — CondorIO
 - **CondorIO mode** (`pegasus.data.configuration=condorio`) — HTCondor manages all file transfers
 - Input/output files are declared in Condor submit files via `transfer_input_files` / `transfer_output_files`
@@ -331,14 +336,18 @@ The properties file is passed to each `SubWorkflow` via `--conf`.
 
 ### 8.1 Experiments
 
-| Experiment | Purpose | Configuration |
+Configurations below are **as run**, matching `configs/exp_e*.yml` and the reported results. Every experiment enables both datasets, uses ResNet-18 with an ImageNet-pretrained backbone, batch size 32, and full client participation (C=1.0). E1 through E5 use SGD with momentum 0.9 and weight decay $10^{-4}$ at lr=0.001. Each configuration varies one factor relative to E1, except where noted.
+
+| Experiment | Purpose | Configuration (as run) |
 |---|---|---|
-| **E1: Baseline** | Central vs. FL accuracy gap | K=5, T=50, FedAvg |
-| **E2: Algorithm Comparison** | FedAvg vs. FedProx under heterogeneity | K=5, T=50, varying heterogeneity |
-| **E3: Scalability** | Impact of client count | K={3,5,10}, T=50 |
-| **E4: Communication Efficiency** | Fewer rounds, more local epochs | T={10,25,50}, E={1,3,5} |
-| **E5: Cross-Dataset** | Generalization across modalities | TCIA primary, NIH Chest X-Ray secondary |
-| **E6: Improved Training** | Fix model collapse from E1-E5 | Frozen backbone, Adam, lr=0.0001, class-weighted loss, augmentation, grad clipping |
+| **E1: Baseline** | Central vs. FL accuracy gap | FedAvg, K=10, T=50, E=2 |
+| **E2: Algorithm Comparison** | FedAvg vs. FedProx under heterogeneity | FedProx (mu=0.01), K=10, T=50, E=2 |
+| **E3: Scalability** | Impact of client count | FedAvg, K=5, T=50, E=2 |
+| **E4: Communication Efficiency** | Fewer rounds, more local epochs | FedAvg, K=10, T=10, E=5 |
+| **E5: Cross-Dataset** | Generalization across modalities | FedAvg, K=10, T=50, E=2 (FL rounds not carried through, see §13) |
+| **E6: Improved Training** | Address the collapse seen in E1-E5 | FedAvg, K=10, T=50, E=5, Adam at lr=0.0001, frozen backbone, class-weighted loss, augmentation, gradient clipping 1.0, cosine schedule |
+
+**E6 deviates from E1 in more than the optimizer settings.** Its NIH block sets `num_classes: 14` where E1 through E5 set `2`, so the E6 NIH model head has 14 outputs while `partition_clients.py` emits binary labels. The consequences are visible in the released metrics: E6 NIH round 0 accuracy is 0.0032 (chance level across 14 classes) before recovering to 0.4618 from round 1 onward, and its macro F1 of 0.093 is dominated by twelve classes with zero support. The E6 TCIA branch is unaffected (`num_classes: 2`). This value is preserved in `configs/exp_e6_improved.yml` because it is what produced the reported E6 numbers, so treat E6 as a single-factor variation on TCIA only.
 
 ### 8.2 Metrics
 - **Accuracy** (global and per-client)
@@ -349,12 +358,98 @@ The properties file is passed to each `SubWorkflow` via `--conf`.
 - **Per-job wall time and resource usage** (from Pegasus provenance DB)
 
 ### 8.3 Expected Figures
-1. Convergence curves: global accuracy vs. round (FedAvg vs. FedProx vs. centralized)
+
+**Produced by the workflow** (`plot_results.py`, written as both 300 dpi PNG and PDF):
+
+1. `fig1_convergence` — global accuracy and F1 vs. round for each dataset, with the centralized baseline drawn as a reference line
+3. `fig3_data_distribution` — per-client class balance for each dataset (heterogeneity evidence)
+5. `fig5_cross_dataset` — cross-modality evaluation matrix (TCIA model on NIH data and vice versa)
+
+**Derived outside the workflow**, from the Pegasus provenance database or from several runs, and therefore not acceptance criteria for a single run:
+
 2. Per-client accuracy heatmap (clients x rounds)
-3. Data distribution visualization (class imbalance across clients)
-4. Scalability plot: makespan vs. number of clients
-5. Communication efficiency: accuracy vs. total data transferred
-6. Workflow DAG visualization (from `pegasus-graphviz`)
+4. Scalability plot: makespan vs. number of clients (requires the E3 sweep)
+6. Workflow DAG visualization (`pegasus-graphviz` on the planned DAG)
+
+Figure numbering is kept from the original plan so that the identifiers used in code, in output directories, and in the paper stay stable even though only 1, 3, and 5 are generated by the workflow itself.
+
+### 8.4 Constraints
+
+Properties the implementation **must** satisfy. These are the statements the user checks during specification review, before any code is generated, and they are re-checked after every fix applied during debugging. A violation is an implementation defect, not a design choice.
+
+| ID | Constraint | How it is checked |
+|---|---|---|
+| **C1** | **Round structure.** Exactly `T` sequential `fl_round` sub-workflows per enabled dataset. Round `t` depends only on round `t-1`. Within a round: `select_clients` → `ceil(C*K)` parallel `train_client_*` jobs → a single `aggregate_models` fan-in → a single `validate_global`. | Planned sub-workflow count equals `T x (enabled datasets) + 1`; DAG inspected with `pegasus-graphviz` |
+| **C2** | **Inter-round state is a single file.** The only state carried from round `t-1` to round `t` is `{dataset}_global_model_r{t-1}.pt` (or `{dataset}_initial_model.pt` at `t=0`). It must be staged out and registered so the next round's planner can resolve it, and cleanup must not remove it between rounds. | Round `t`'s replica catalog resolves the previous round's model; `pegasus.file.cleanup.scope` is not `deferred` (see §14.1) |
+| **C3** | **Dataset branch independence.** The TCIA and NIH branches share no intermediate files and converge only at `cross_dataset_eval` / `plot_results` / `generate_report`. A failure in one branch must not block the other. | No cross-branch edges in the DAG before the converge stage |
+| **C4** | **Site resource limits.** GPU jobs (`train_local`, `evaluate`, `centralized_baseline`) request exactly 1 GPU and stay within the per-job CPU and memory limits declared in `execution` (`gpu_per_train_job`, `cpu_per_train_job`, `mem_per_train_job`), which must not exceed what a single-Tesla-T4 worker at MAX or NCSA can provide. Non-GPU jobs must not request a GPU, so they remain schedulable on TACC and WASH. Per-job walltime must stay under `execution.max_walltime`. | HTCondor profiles on each transformation (§7.1); jobs land on the intended sites in the pool rather than sitting idle in the queue |
+| **C5** | **No shared filesystem.** All data movement goes through CondorIO. Every job declares all of its inputs and outputs; no script may reach for a submit-host path at runtime. | `pegasus.data.configuration=condorio`; jobs succeed on workers with unrelated scratch filesystems |
+| **C6** | **The container image is not staged per round.** Workers pull the training image once from the registry and reuse the local Docker cache; a multi-gigabyte image copied per round sub-workflow exhausts worker scratch. | `bypass_staging=True` on the `Container` definition (§14.11) |
+| **C7** | **Deterministic client selection.** Client selection is seeded by the round number, so re-planning or rescuing a round selects the same clients. | Re-running `select_clients.py` for a given round yields an identical `selected_clients.json` |
+| **C8** | **Per-job provenance.** Every job carries the `+FL_Algorithm`, `+FL_NumRounds`, and `+FL_JobType` ClassAds so per-round cost, resource usage, and communication volume can be recovered from the Pegasus stampede database after the fact. | Attributes present in the Condor submit files and queryable in the stampede DB |
+| **C9** | **No silent synthetic-data fallback.** If the expected `train/<label>/*.png` structure is missing, training must fail visibly rather than substitute random tensors. Silent fallbacks produce plausible-looking metrics for a broken run. | No `torch.randn()` data path in `train_local.py` (§14.4) |
+| **C10** | **Every declared output is written, even on failure.** A job that exits without producing its declared output files causes HTCondor to hold the job on stage-out and stalls the DAG. A job that cannot do useful work writes the empty declared output and then exits non-zero. | Failed jobs appear as failures in `pegasus-analyzer`, not as held jobs |
+| **C11** | **Configuration-driven experiments.** All FL parameters (`K`, `T`, `E`, batch size, learning rate, `C`, algorithm, `fedprox_mu`, architecture) come from a single config YAML. Adding an experiment must not require editing the workflow generators. | `configs/exp_e*.yml` differ from `configs/default.yml` only in configuration, and `fl_main.py` is unchanged between experiments |
+
+### 8.5 Non-Constraints
+
+Degrees of freedom deliberately left to the implementation. Changes confined to this list do **not** invalidate the reviewed specification and do not require re-approval, which keeps review focused on the decisions that matter.
+
+| ID | Non-constraint |
+|---|---|
+| **N1** | Names of intermediate files, as long as they are unique per dataset, round, and client (the `{dataset}_r{t}_*` convention is a convenience, not a requirement) |
+| **N2** | Internal structure of the wrapper scripts: argument parsing, helper decomposition, module layout, and how much code `train_local.py`, `evaluate.py`, and `centralized_baseline.py` share |
+| **N3** | Archive format and granularity of data shards (one `tar.gz` per client is used, but a directory or another archive format is acceptable under CondorIO) |
+| **N4** | Which pre-trained checkpoint source is used for the backbone, and the internal details of the model definition, provided the architecture is selectable from config |
+| **N5** | Whether aggregation calls Flower's `Strategy` API or computes the weighted average directly, provided FedAvg and FedProx semantics are preserved |
+| **N6** | Plot styling, color choices, and file formats beyond the required PNG plus PDF pair, and whether the report is Markdown or LaTeX |
+| **N7** | Job-to-site mapping beyond the GPU / non-GPU distinction in C4; all remaining placement is left to HTCondor |
+| **N8** | The random number generator used for client selection, provided it is seeded by round (C7) |
+| **N9** | How raw data is obtained (live download through `tcia_utils` and HuggingFace, or a pre-staged archive through `raw_data_path`); both paths must exist but their internals are free |
+| **N10** | DAGMan tuning values: retry counts, throttles, and `max_running` for ensemble sweeps |
+| **N11** | Absolute values of the FL accuracy and F1 results (see §8.6.5) |
+
+### 8.6 Expected Outcomes
+
+Acceptance criteria for the generated code. Together with §8.4 these are what the user reviews before implementation, and what the debugging skill treats as the definition of "working" when it diagnoses a failure.
+
+#### 8.6.1 Artifacts each stage must produce
+
+| Stage | Required artifacts (per enabled dataset) | Acceptance check |
+|---|---|---|
+| Data preparation | `{dataset}_client_{i}_data.tar.gz` for `i` in `0..K-1`, `{dataset}_test_data.tar.gz`, `{dataset}_initial_model.pt`, `{dataset}_data_stats.json` | Shard count equals `K`; each shard contains `train/<label>/*.png` and `test/<label>/*.png`; stats report a non-uniform class balance across clients |
+| FL round `t` | `{dataset}_r{t}_selected_clients.json`, `{dataset}_r{t}_local_model_c{i}.pt` and `{dataset}_r{t}_local_metrics_c{i}.json` for each selected client, `{dataset}_global_model_r{t}.pt`, `{dataset}_r{t}_round_metrics.json` | One round-metrics file per round, `r0` through `r{T-1}`, each containing accuracy and macro F1 on the held-out test set |
+| Centralized baseline | `{dataset}_centralized_metrics.json` | Present for every enabled dataset, and reports accuracy above the majority-class rate |
+| Cross-dataset evaluation | `cross_dataset_metrics.json` | Contains both directions (TCIA model on NIH data and the reverse) |
+| Visualization | `figures/fig1_convergence.{png,pdf}`, `figures/fig3_data_distribution.{png,pdf}`, `figures/fig5_cross_dataset.{png,pdf}`, `figures.tar.gz` | All three figures render with data from the current run, not placeholders |
+| Report | `experiment_report.md` | References every metrics file produced by the run |
+
+The per-round timeline is materialized as the set of `{dataset}_r{t}_round_metrics.json` files rather than a single aggregated history file, and per-client evaluation is folded into `validate_global` and the per-client local metrics. Either shape satisfies §4.4.
+
+#### 8.6.2 Smoke-test gate
+
+`configs/default.yml` (both datasets, `K=2`, `T=2`, capped downloads) is the gate that must pass before any full-scale run:
+
+- The workflow plans into 5 sub-workflows (2 datasets x 2 rounds, plus the top level).
+- It completes end to end on the HTCondor pool without manual intervention.
+- It stages out 8 metrics files (per dataset: 1 stats, 2 round metrics, 1 centralized), plus `cross_dataset_metrics.json`, the 6 figure files, `figures.tar.gz`, and `experiment_report.md`.
+- Round 1 consumes the global model produced by round 0, confirming C2 on real infrastructure rather than by inspection.
+
+#### 8.6.3 Full-scale gate
+
+The E1 configuration (`K=10`, `T=50`, both datasets) must plan into 101 sub-workflows (50 rounds x 2 datasets, plus the top level) and roughly 2,400 jobs once Pegasus-generated staging and cleanup jobs are included, and must run to completion on the distributed pool. Job-level retries are permitted by `dagman.retry=3` but should not be needed for infrastructure-stable runs; a DAG-level rescue is acceptable when the debugging skill has applied a fix and resubmitted.
+
+#### 8.6.4 Metrics that must appear in the outputs
+
+Accuracy and macro F1 (global and per client), per-class metrics, a per-round timeline covering all `T` rounds, communication volume derived from model-checkpoint sizes and round-trip counts, workflow makespan from `pegasus-statistics`, and per-job walltime and resource usage from the stampede database and the `resource_monitor.py` samples.
+
+#### 8.6.5 What is explicitly not an acceptance criterion
+
+Federated model quality is not a criterion. The purpose of the experiments is to demonstrate that the generated workflow executes correctly at scale and produces scientifically interpretable output, so a scientifically plausible negative result is a pass, not a defect. Concretely:
+
+- A large federated-versus-centralized accuracy gap is an expected consequence of limited data per client under a natural, non-IID partition.
+- Collapse to majority-class prediction after the first aggregation round, as observed in E6 even with backbone freezing, Adam, class-weighted loss, augmentation, gradient clipping, and cosine scheduling, is reported as a finding about weight averaging under small per-client datasets. It does not fail the workflow.
+- What *does* fail acceptance: missing or empty artifacts, metrics that are identical across rounds because the global model never propagated (a C2 violation), or metrics computed on synthetic rather than real data (a C9 violation).
 
 ---
 
@@ -371,13 +466,14 @@ medical-imaging-fl-workflow/           # Self-contained workflow directory
 ├── run_sweep.sh                       # Launch hyperparameter sweep via Ensemble Manager
 ├── configs/
 │   ├── default.yml                    # Smoke-test config (K=2, T=2, FedAvg, both datasets)
-│   ├── exp_full.yml           # Full experiment config (K=5, T=20, 3 local epochs, 0.6 fraction)
-│   ├── exp_e1_baseline.yml            # E1: Central vs. FL accuracy gap
-│   ├── exp_e2_algorithm.yml           # E2: FedAvg vs. FedProx
-│   ├── exp_e3_scalability.yml         # E3: Client count scaling (K=3,5,10)
-│   ├── exp_e4_communication.yml       # E4: Rounds vs. local epochs trade-off
+│   ├── exp_test_quick.yml             # Short pipeline check (K=5, T=5) on pre-staged data
+│   ├── exp_full.yml                   # Full experiment config (K=5, T=20, E=3, C=0.6)
+│   ├── exp_e1_baseline.yml            # E1: Central vs. FL accuracy gap (K=10, T=50, E=2)
+│   ├── exp_e2_algorithm.yml           # E2: FedAvg vs. FedProx (mu=0.01)
+│   ├── exp_e3_scalability.yml         # E3: Client count scaling (K=5)
+│   ├── exp_e4_communication.yml       # E4: Rounds vs. local epochs (T=10, E=5)
 │   ├── exp_e5_cross_dataset.yml       # E5: Cross-modality generalization
-│   └── exp_e6_improved.yml           # E6: Improved training (fixes model collapse)
+│   └── exp_e6_improved.yml            # E6: Training optimizations (Adam, frozen backbone)
 ├── scripts/
 │   ├── resource_monitor.py             # GPU/CPU/RAM monitoring (ResourceMonitor class)
 │   ├── download_data.py               # Real dataset download (TCIA DICOM→PNG, NIH HuggingFace)
@@ -520,12 +616,15 @@ docker build -f containers/Dockerfile.fl-training -t fl-training:latest .
 | Dependencies | Complete | `requirements.txt` |
 | README | Complete | `README.md` |
 | Smoke test (2 rounds, 2 clients) | Passed | `configs/default.yml` |
-| E1-E5 experiments (50 rounds, 10 clients) | Complete | `configs/exp_e1_*` through `exp_e5_*` |
-| E6 improved training (50 rounds, 10 clients) | Complete | `configs/exp_e6_improved.yml` |
+| E1-E4 experiments | Complete | `configs/exp_e1_*` through `exp_e4_*` |
+| E5 cross-dataset study | Partial — data preparation, centralized baselines, and cross-dataset evaluation ran; the FL rounds were not carried through, so E5 is out of scope for the reported evaluation. Numbering is retained so config and output identifiers stay stable. | `configs/exp_e5_cross_dataset.yml` |
+| E6 improved training (50 rounds, 10 clients) | Complete — two DAG-level rescues, both diagnosed and fixed by the debugging skill | `configs/exp_e6_improved.yml` |
+
+Executed configurations, as reported in the evaluation: E1 (`K=10`, `T=50`, FedAvg baseline), E2 (FedProx), E3 (`K=5`), E4 (`T=10`, `E=5`), E6 (training optimizations). E1 and E2 each planned into 101 sub-workflows and over 2,400 jobs, satisfying the full-scale gate in §8.6.3.
 
 ## 14. Key Fixes Applied
 
-1. **`pegasus.file.cleanup.scope`**: Changed from `deferred` to `none`. Deferred cleanup removed scratch files between sequential sub-workflow rounds, leaving empty input caches for downstream planners.
+1. **`pegasus.file.cleanup.scope`**: Changed from `deferred` to `inplace`. Deferred cleanup removed scratch files between sequential sub-workflow rounds, leaving empty input caches for downstream planners and violating C2. In-place cleanup reclaims space within a round while keeping the global model checkpoint available to the next round.
 
 2. **Partition output staging**: Client data files changed from `stage_out=True` to `stage_out=False, register_replica=True`. Intermediate files stay in scratch for sub-workflows while being registered in the JDBCRC.
 
@@ -544,6 +643,16 @@ docker build -f containers/Dockerfile.fl-training -t fl-training:latest .
 
 8. **Sub-workflow catalog propagation**: Sub-workflows planned at runtime need their own catalog paths. Added per-sub-workflow `.properties` files with RC, TC, SC paths and `pegasus.transfer.worker.package=true` to stage the Pegasus worker package from the submit host.
 
-9. **E6 model collapse fix**: Experiments E1-E5 collapsed to majority-class prediction. Root causes: full-model averaging destroying pretrained features, no class imbalance handling, aggressive LR (0.01 with SGD), no augmentation, and `fedprox_mu` never passed to `train_local.py`. E6 adds backbone freezing, Adam optimizer, class-weighted loss, data augmentation, gradient clipping, cosine LR scheduler, and fixes the FedProx parameter passthrough.
+9. **E6 model collapse fix**: Experiments E1-E5 collapsed to majority-class prediction. Suspected causes: full-model averaging destroying pretrained features, no class imbalance handling, SGD at lr=0.001 on small client shards, and no augmentation. E6 adds backbone freezing, Adam optimizer at lr=0.0001, class-weighted loss, data augmentation, gradient clipping, and a cosine LR scheduler, and it fixes the FedProx parameter passthrough. E6 did not resolve the collapse, which is reported as a finding rather than a defect (§8.6.5).
 
-10. **FedProx bug fix**: `fedprox_mu` was defined in config but never passed from `fl_round.py` to `train_local.py` CLI args, so all FedProx experiments (E2) ran as plain FedAvg. Fixed by always passing `--fedprox-mu` to train jobs.
+10. **FedProx parameter passthrough**: `fedprox_mu` was defined in config but never passed from `fl_round.py` to `train_local.py`, so the configured value was ignored and `train_local.py` fell back to its argparse default. Fixed by always passing `--fedprox-mu` to train jobs. **E2's results are unaffected**: its configured `fedprox_mu` of 0.01 happens to equal the argparse default, and the proximal term is applied whenever `--algorithm fedprox` is set, so E2 did run genuine FedProx at mu=0.01. This was verified against the submitted job arguments in `work/submit/.../run0007`, which carry `--algorithm fedprox` with no `--fedprox-mu`. The bug would have silently mattered for any config choosing a different mu.
+
+11. **Worker disk exhaustion (container staging)**: Each round's sub-workflow staged its own copy of the multi-gigabyte training image, so worker scratch usage grew with the number of rounds and training jobs began failing mid-run. Fixed by setting `bypass_staging=True` on the `Container` definition, so workers pull the image once from the registry and reuse the local Docker cache. This is the constraint recorded as C6 in §8.4.
+
+12. **Concurrent experiment collisions**: Running several experiment configs at once let them write into the same output directory and overwrite each other's results. Fixed by namespacing the output directory and the generated round sub-workflow YAML files by config name, so a sweep can run configurations concurrently.
+
+13. **Class-weight / model-head mismatch**: Class weights were computed from the number of labels observed in a client shard, which can be smaller than the model's output dimension, producing a weight tensor whose length did not match the `CrossEntropyLoss` expectation and failing the training job. Fixed by inferring `num_classes` from the model head (and from the global checkpoint when loading) rather than from the observed labels.
+
+14. **Undeclared helper dependencies**: `train_local.py` and `evaluate.py` import `resource_monitor.py`, and the round jobs use `evaluate.py` as a helper module. Because the scripts are staged from the submit host rather than baked into the container, these modules have to be declared as job inputs and registered in the per-round replica catalog; otherwise jobs fail at import time on the worker.
+
+15. **Configs reconciled with the submit host (2026-07-30)**: The configs in this repository had drifted from the versions that produced the reported results, which were recovered from the submit host and from the as-submitted round sub-workflow YAML files under `work/submit/.../run0006` through `run0010`. `exp_e1` through `exp_e5` differed in six fields: `local_epochs` (2, not 5), `learning_rate` (0.001, not 0.01), E3 `num_clients` (5, not 10), NIH `num_classes` (2, not 14), `max_series_per_collection` (2000), and `max_samples` (50000). The as-submitted arguments confirm the corrected values, for example E1 round 0 carries `--local-epochs 2 --batch-size 32 --learning-rate 0.001`. The stale NIH `num_classes: 14` was also corrected in `default.yml` and `exp_full.yml`, which produced no reported results. It is deliberately left at 14 in `exp_e6_improved.yml`, which is as run (see §8.1).

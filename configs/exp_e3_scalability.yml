@@ -8,9 +8,9 @@
 fl:
   algorithm: "fedavg"
   num_rounds: 50
-  local_epochs: 5
+  local_epochs: 2
   batch_size: 32
-  learning_rate: 0.01
+  learning_rate: 0.001
   client_fraction: 1.0
   model_arch: "resnet18"
   fedprox_mu: 0.0
@@ -18,7 +18,7 @@ fl:
 datasets:
   tcia:
     enabled: true
-    num_clients: 10
+    num_clients: 5
     collections:
       - "NSCLC-Radiomics"
       - "TCGA-LUAD"
@@ -29,7 +29,7 @@ datasets:
     image_size: [224, 224]
     num_classes: 2
     test_split: 0.2
-    max_series_per_collection: 100
+    max_series_per_collection: 2000
     collection_labels:
       NSCLC-Radiomics: 0
       TCGA-LUAD: 1
@@ -40,14 +40,14 @@ datasets:
 
   nih:
     enabled: true
-    num_clients: 10
+    num_clients: 5
     source: "ChestXray-NIHCC"
     partition_by: "patient_id"
     task: "pathology_classification"
     image_size: [224, 224]
-    num_classes: 14
+    num_classes: 2
     test_split: 0.2
-    max_samples: 20000
+    max_samples: 50000
     download_source: "huggingface"
     raw_data_path: "/home/ubuntu/medical-imaging-fl-workflow/nih_raw_data.tar.gz"
 
