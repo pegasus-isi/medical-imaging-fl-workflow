@@ -422,13 +422,14 @@ def build_workflow(cfg: dict, config_name: str = "") -> Workflow:
     cross_eval_job = None
     if len(branch_outputs) == 2:
         cross_metrics = File("cross_dataset_metrics.json")
-        # cross_dataset_eval imports from evaluate.py which imports resource_monitor.py
+        # cross_dataset_eval.py does "from evaluate import ...", and evaluate.py
+        # imports resource_monitor.py. Both are registered in
+        # build_replica_catalog, so they only need declaring as inputs here.
+        # Without this the import resolves from the copy of scripts/ baked into
+        # the container at /opt/scripts/, which risks version skew against the
+        # staged copies.
         evaluate_file = File("evaluate.py")
         resource_monitor_file = File("resource_monitor.py")
-        rc.add_replica("local", "evaluate.py",
-                        (scripts_dir / "evaluate.py").as_uri())
-        rc.add_replica("local", "resource_monitor.py",
-                        (scripts_dir / "resource_monitor.py").as_uri())
         cross_eval_job = (
             Job("cross_dataset_eval", node_label="cross_eval")
             .add_args("--output-metrics", cross_metrics, "--config", config_file)
