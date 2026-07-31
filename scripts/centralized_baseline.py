@@ -58,18 +58,17 @@ class PooledImageDataset(Dataset):
                             self.labels.append(label)
 
         if not self.samples:
-            print("  No real images — using synthetic data")
-            self.synthetic = True
-            self.num_samples = 500
-        else:
-            self.synthetic = False
+            # Constraint C9: never substitute synthetic data.
+            raise FileNotFoundError(
+                "no training images found in the pooled client shards. "
+                f"Expected train/<label>/*.png. "
+                f"Present in cwd: {sorted(p.name for p in Path('.').iterdir())}"
+            )
 
     def __len__(self):
-        return self.num_samples if self.synthetic else len(self.samples)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        if self.synthetic:
-            return torch.randn(3, 224, 224), torch.randint(0, 2, (1,)).item()
         from PIL import Image
         img = Image.open(self.samples[idx]).convert("RGB")
         return self.transform(img), self.labels[idx]

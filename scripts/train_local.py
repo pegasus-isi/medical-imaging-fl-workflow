@@ -78,22 +78,20 @@ class LocalImageDataset(Dataset):
                         self.labels.append(label)
 
         if not self.samples:
-            # Fallback: generate synthetic data for development/testing
-            print("  No real images found — using synthetic data for development")
-            self.synthetic = True
-            self.num_samples = 100
-        else:
-            self.synthetic = False
+            # Constraint C9: never substitute synthetic data. A shard that does
+            # not unpack to train/<label>/*.png is an error, and silently
+            # training on random tensors produces confident, meaningless metrics.
+            raise FileNotFoundError(
+                f"no training images under {train_dir}. "
+                f"Expected train/<label>/*.png. "
+                f"Present in {data_dir}: {sorted(p.name for p in data_dir.iterdir()) if data_dir.exists() else 'directory missing'}. "
+                f"Present in cwd: {sorted(p.name for p in Path('.').iterdir())}"
+            )
 
     def __len__(self):
-        return self.num_samples if self.synthetic else len(self.samples)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        if self.synthetic:
-            x = torch.randn(3, 224, 224)
-            y = torch.randint(0, 2, (1,)).item()
-            return x, y
-
         from PIL import Image
         img = Image.open(self.samples[idx]).convert("RGB")
         return self.transform(img), self.labels[idx]
@@ -289,8 +287,10 @@ def main():
     monitor = ResourceMonitor(interval=5.0)
     monitor.start()
 
-    # Extract client data
-    data_dir = Path(f"client_{args.client_id}_data")
+    # Extract client data. partition_clients.py packs each shard with
+    # arcname=f"client_{i}", so that is the directory to read. Using any other
+    # name silently yields an empty dataset.
+    data_dir = Path(f"client_{args.client_id}")
     with tarfile.open(args.client_data, "r:gz") as tar:
         tar.extractall(".")
 

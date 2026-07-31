@@ -91,11 +91,13 @@ same fix correctly.
 
 So on the day of the test the specification-derived workflow ran and the
 hand-maintained one did not. The original has since been repaired by dropping
-the out-of-scope `rc.add_replica` calls, which `build_replica_catalog` already
-performs, and keeping the input declarations on the job. That last part is a
-deliberate deviation from the as-run code, recorded in SPEC.md section 14, entry
-14. It changes only which files are staged to one evaluation job and alters no
-FL computation or reported metric.
+the out-of-scope `rc.add_replica` calls and keeping the input declarations on the
+job, a deliberate deviation from the as-run code recorded in SPEC.md section 14,
+entry 14.
+
+The same review round found a far more serious defect that the regenerated
+workflow also avoided: every reported training job trained on synthetic noise.
+See `CRITICAL_synthetic_training_data.md`.
 
 ## What this does not show
 

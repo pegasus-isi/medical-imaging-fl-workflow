@@ -41,7 +41,7 @@ trigger.
 | 1 | Cleanup scope `deferred` | yes | no | **yes** | The property value sits next to `SubWorkflow` jobs that consume prior rounds' outputs. Constraint C2 states the global model must survive between rounds, so the combination is checkable. |
 | 2 | Partition output staging | yes | no | **yes** | `stage_out=True` on a file consumed by a later sub-workflow, with no `register_replica`. This is an existing `/pegasus-review` checklist item. |
 | 3 | Condor ClassAds added | no | n/a | n/a | Instrumentation for provenance, not a fix. |
-| 4 | Placeholder data downloads | yes | **yes** | **yes** | A `torch.randn()` fallback path in `train_local.py` is visible in the source and is exactly what constraint C9 forbids. |
+| 4 | Placeholder data downloads | yes | **yes** | **yes** | A `torch.randn()` fallback path in `train_local.py` is visible in the source and is exactly what constraint C9 forbids. **Correction (2026-07-31): this was never actually fixed.** The fallback remained and was the live path on every reported run. See `CRITICAL_synthetic_training_data.md`. |
 | 5 | Pre-staged data support | no | n/a | n/a | New `raw_data_path` capability. |
 | 6 | Data-limiting parameters | no | n/a | n/a | New config knobs for development. |
 | 7 | Stageable scripts | no | n/a | n/a | Design change to avoid container rebuilds. |
