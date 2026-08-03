@@ -616,11 +616,16 @@ docker build -f containers/Dockerfile.fl-training -t fl-training:latest .
 | Dependencies | Complete | `requirements.txt` |
 | README | Complete | `README.md` |
 | Smoke test (2 rounds, 2 clients) | Passed | `configs/default.yml` |
-| E1-E4 experiments | Complete | `configs/exp_e1_*` through `exp_e4_*` |
+| **E1, E3, E4 re-run on real data (2026-08-01 to 08-03)** | Complete, 0 failures, 0 rescues. These supersede the original runs, which trained on synthetic tensors (see §14 fix 16). E1 24.3 h, E3 30.1 h, E4 4.6 h. | `configs/exp_e1_baseline.yml`, `exp_e3_scalability.yml`, `exp_e4_communication.yml` |
+| E2 (FedProx) re-run | Not complete. Started 2026-08-03 and reached round 6 of 50 before the testbed entered maintenance. Must be re-run. | `configs/exp_e2_algorithm.yml` |
+| E6 (training optimizations) re-run | Not started. Its premise, escaping the majority-class collapse, no longer applies because the collapse was an artifact of fix 16. Reconsider the configuration before re-running. | `configs/exp_e6_improved.yml` |
+| Original E1-E4 experiments (superseded) | Executed, but every training job used synthetic data. Metrics retained for reference only. | `e1_outputs/` through `e4_outputs/` |
 | E5 cross-dataset study | Partial — data preparation, centralized baselines, and cross-dataset evaluation ran; the FL rounds were not carried through, so E5 is out of scope for the reported evaluation. Numbering is retained so config and output identifiers stay stable. | `configs/exp_e5_cross_dataset.yml` |
 | E6 improved training (50 rounds, 10 clients) | Complete — two DAG-level rescues, both diagnosed and fixed by the debugging skill | `configs/exp_e6_improved.yml` |
 
-Executed configurations, as reported in the evaluation: E1 (`K=10`, `T=50`, FedAvg baseline), E2 (FedProx), E3 (`K=5`), E4 (`T=10`, `E=5`), E6 (training optimizations). E1 and E2 each planned into 101 sub-workflows and over 2,400 jobs, satisfying the full-scale gate in §8.6.3.
+Valid results, from the corrected re-runs, cover E1 (`K=10`, `T=50`), E3 (`K=5`), and E4 (`T=10`, `E=5`). Each fifty round configuration planned into 101 sub-workflows, satisfying the full-scale gate in §8.6.3: E1 produced 2,679 jobs in 24.3 h and E3 2,179 jobs in 30.1 h, while E4 produced 559 jobs in 4.6 h.
+
+Headline accuracies, final round against the centralized baseline on TCIA and NIH: E1 93.6/66.1 against 95.8/67.4, E3 95.3/66.8 against 95.9/66.7, E4 94.2/67.6 against 95.1/66.3. Federated training approaches or matches centralized training in every case, which is the opposite of what the superseded synthetic-data runs showed.
 
 ## 14. Key Fixes Applied
 

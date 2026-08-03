@@ -238,15 +238,17 @@ cd medical-imaging-fl-workflow
 | E3 | Scalability | Client count impact | FedAvg, K=5, T=50, E=2 |
 | E4 | Communication | Rounds vs. local epochs trade-off | FedAvg, K=10, T=10, E=5 |
 | E5 | Cross-Dataset | Cross-modality generalization | FedAvg, K=10, T=50, E=2 |
-| E6 | Improved Training | Address the collapse seen in E1-E5 | Adam at lr=1e-4, frozen backbone, class-weighted loss, augmentation |
+| E6 | Improved Training | Superseded, see below | Adam at lr=1e-4, frozen backbone, class-weighted loss, augmentation |
 
 Values are as run. E1 through E5 use SGD with momentum 0.9, weight decay 1e-4, lr=0.001, batch size 32, and full client participation. E5's FL rounds were not carried through and are not reported.
 
+**Valid results come from the 2026-08 re-runs of E1, E3 and E4 only.** Everything executed before then trained on synthetic tensors because of the defect recorded as fix 16 in SPEC.md. E2 was interrupted by testbed maintenance at round 6 of 50 and E6 was not re-run. See `analysis/CRITICAL_synthetic_training_data.md`.
+
 ### E6: Improved Training
 
-Experiments E1-E5 exhibited model collapse to majority-class prediction (~46-54% accuracy). Suspected causes: full-model averaging destroying pretrained ImageNet features, no class imbalance handling, SGD at lr=0.001 on small client shards (~330 TCIA and ~4,000 NIH images per client at K=10), and no data augmentation. A separate bug meant the configured `fedprox_mu` was not passed to `train_local.py`, though E2 was unaffected because its value matched the script default (see SPEC.md section 14).
+**Superseded.** Experiments E1-E5 appeared to collapse to majority-class prediction (~46-54% accuracy), and E6 was designed to fix that. The collapse was not a federated learning phenomenon. `train_local.py` read each shard from the wrong directory name, so every training job trained on random tensors (SPEC.md section 14, fix 16). After the one line fix, E1, E3 and E4 reach 93.6-95.3% on TCIA and 66.1-67.6% on NIH, within about two points of centralized training.
 
-E6 addresses these, and did not resolve the collapse:
+E6's premise therefore no longer holds, and the table below is retained only to document what was tried:
 
 | Parameter | E1-E5 (baseline) | E6 (improved) | Rationale |
 |-----------|-------------------|---------------|-----------|

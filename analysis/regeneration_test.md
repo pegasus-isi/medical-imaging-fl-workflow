@@ -6,6 +6,12 @@ Claude Code session with the `pegasus-ai` plugin, running with Opus in a
 container with Pegasus 6.0.0-dev, and asked to build the workflow. No file from
 the original implementation was available to it.
 
+Both generators were then run under the same Pegasus 5.0.4 on the submit host for
+the structural comparison, so the equivalence below is measured on one Pegasus
+version rather than across two. The regeneration itself having targeted
+6.0.0-dev means the specification produced a working workflow for a release it
+was not written against.
+
 The specification handed over was byte-identical to the committed one
 (md5 `3d01aceb34d3f42782c3a601c0271223`), so it included the constraints in
 section 8.4, the non-constraints in section 8.5, the expected outcomes in
